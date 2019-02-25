@@ -1,62 +1,119 @@
-var gulp        = require('gulp');
+var gulp = require('gulp');
+var less = require('gulp-less');
+var babel = require('gulp-babel');
+var concat = require('gulp-concat');
+var uglify = require('gulp-uglify');
+var rename = require('gulp-rename');
+var cleanCSS = require('gulp-clean-css');
+var imagemin = require('gulp-imagemin');
+var del = require('del');
 var browserSync = require('browser-sync').create();
 var sass        = require('gulp-sass');
-const { watch, series } = require('gulp');
 
- 
+var filetorun = 'index.html';
 
-gulp.task('scss',function(done){
-    gulp.src('./app/scss/*.scss').pipe(sass()).pipe(gulp.dest('./app/css'));
-    //browserSync.reload();
-    done();  
-})
+var paths = {
+   
+    styles: {
+        src: 'app/src/scss/**/*.scss',
+        dest: 'app/build/css/'
+    },
+    scripts: {
+        src: 'app/src/js/**/*.js',
+        dest: 'app/build/js/'
+    },
+    images: {
+        src: 'app/src/images/**/*.{jpg,jpeg,png}',
+        dest: 'app/build/images/'
+    },
+    svgs: {
+        src: 'app/src/images/**/*.svg',
+        dest: 'app/build/images/'
+    },
+    htmls: {
+        src: 'app/src/**/*.html',
+        dest: 'app/build/'
+    },
+};
 
 
-// gulp.task('jshint', function(done) {
-//     gulp.src('./app/js/**/*.js')
-//       .pipe(jshint())
-//       .pipe(jshint.reporter('jshint-stylish'));
-//       browserSync.reload();
-//       done();
-// });
+function clean() {
+    // You can use multiple globbing patterns as you would with `gulp.src`,
+    // for example if you are using del 2.0 or above, return its promise
+    return del([ 'build' ]);
+}
 
+function styles() {
+    return gulp.src(paths.styles.src)
+    .pipe(sass())
+    .pipe(cleanCSS())
+    // pass in options to the stream
+    .pipe(rename({
+        basename: 'main',
+        suffix: '.min'
+    }))
+    .pipe(gulp.dest(paths.styles.dest));
+}
 
-gulp.task('reload',function(done){
-    browserSync.reload();
+function scripts() {
+    return gulp.src(paths.scripts.src, { sourcemaps: true })
+    .pipe(babel())
+    .pipe(uglify())
+    .pipe(concat('main.min.js'))
+    .pipe(gulp.dest(paths.scripts.dest));
+}
+
+function images() {
+    return gulp.src(paths.images.src, {since: gulp.lastRun(images)})
+    .pipe(imagemin({optimizationLevel: 5}))
+    .pipe(gulp.dest(paths.images.dest));
+}
+
+function svgs() {
+    return gulp.src(paths.svgs.src, { sourcemaps: true })
+    .pipe(gulp.dest(paths.svgs.dest));
+}
+
+function htmls() {
+    return gulp.src(paths.htmls.src, { sourcemaps: true })
+    .pipe(gulp.dest(paths.htmls.dest)); 
+}
+
+function watch(done) {
+    gulp.watch(paths.scripts.src, gulp.series(scripts,reload));
+    gulp.watch(paths.styles.src, gulp.series(styles,reload));
+    gulp.watch(paths.images.src, gulp.series(images,reload));
+    gulp.watch(paths.svgs.src, gulp.series(svgs,reload));
+    gulp.watch(paths.htmls.src, gulp.series(htmls,reload));
     done();
-})
+}
 
 
-gulp.task('serve',function(done){
+function serve(done) {
     browserSync.init({
         server: {
-            baseDir: "./app"
-        }
+            baseDir: "./app/build/"
+        },
+        startPath: filetorun
     });
-    done();
-})
+    //browserSync.watch(paths.htmls.src).on("change", browserSync.reload);
+    done()
+}
 
+function reload(done) {
+    browserSync.reload();
+    done()
+}
 
+var build = gulp.series(clean,htmls,styles,scripts,images,svgs, serve, watch, reload);
 
-
-gulp.task('default', gulp.parallel(['serve','scss'],function(done){  
-    gulp.watch("./app/scss/*.scss",gulp.parallel(['scss'],function(done){
-        browserSync.reload();
-        done();
-    }));
-    // gulp.watch('./app/js/**/*.js', gulp.parallel(['jshint','reload'],function(done){
-    //     done();
-    // }));
-
-    gulp.watch('./app/**/*.html', gulp.parallel(['reload'],function(done){
-        //browserSync.reload();
-        done();
-    }));
-
-    done();
-})
-
-    
-);
-  
-  
+exports.clean = clean;
+exports.styles = styles;
+exports.scripts = scripts;
+exports.images = images;
+exports.svgs = svgs;
+exports.htmls = htmls;
+exports.serve = serve;
+exports.watch = watch;
+exports.build = build;
+exports.default = build;
