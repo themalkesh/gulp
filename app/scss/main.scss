@@ -1,0 +1,18 @@
+@import 'node_modules/bootstrap/scss/bootstrap';
+
+$mycolor: #363162;
+
+$mycolor2: green;
+
+body {
+    background: $mycolor;
+    color : #FFF; 
+}
+
+.container {
+    background-color: $mycolor2;
+    color : #FFF; 
+    h1{
+        color:red
+    }
+}
